@@ -1,24 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:trivy/models/destination_model.dart';
+import 'package:trivy/models/hotel_model.dart';
+import 'package:trivy/providers/home_providers.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final String username = ref.watch(usernameProvider);
+    final List<Destination> destinations = ref.watch(
+      popularDestinationsProvider,
+    );
+    final List<Hotel> hotels = ref.watch(hotelRecommendationsProvider);
+
     return Scaffold(
       body: ListView(
         children: [
-          _buildHeader(),
+          _buildHeader(username),
           const SizedBox(height: 20),
           _buildSearchBar(),
           const SizedBox(height: 30),
           _buildSectionTitle('Popular Destinations', () {}),
           const SizedBox(height: 20),
-          _buildPopularDestinations(),
+          _buildPopularDestinations(destinations),
           const SizedBox(height: 30),
           _buildSectionTitle('Hotel Recommendations', () {}),
           const SizedBox(height: 20),
-          _buildHotelList(),
+          _buildHotelList(hotels),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -38,21 +48,24 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String username) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Hello, Explorer!',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                'Hello, $username',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              SizedBox(height: 4),
-              Text(
+              const SizedBox(height: 4),
+              const Text(
                 'Discover your next journey',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -108,29 +121,21 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularDestinations() {
+  Widget _buildPopularDestinations(List<Destination> destinations) {
     return Container(
       height: 250,
-      child: ListView(
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(left: 20),
-        children: [
-          _buildDestinationCard(
-            'assets/images/destination_bali.png',
-            'Kelingking Beach',
-            'Bali, Indonesia',
-          ),
-          _buildDestinationCard(
-            'assets/images/destination_paris.png',
-            'Eiffel Tower',
-            'Paris, France',
-          ),
-          _buildDestinationCard(
-            'assets/images/destination_santorini.png',
-            'Santorini',
-            'Greece',
-          ),
-        ],
+        itemCount: destinations.length,
+        itemBuilder: (context, index) {
+          final destination = destinations[index];
+          return _buildDestinationCard(
+            destination.imagePath,
+            destination.title,
+            destination.location,
+          );
+        },
       ),
     );
   }
@@ -203,25 +208,23 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHotelList() {
+  Widget _buildHotelList(List<Hotel> hotels) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        children: [
-          _buildHotelCard(
-            'assets/images/destination_santorini.png',
-            'Santorini Resort',
-            'Greece',
-            4.8,
-          ),
-          const SizedBox(height: 15),
-          _buildHotelCard(
-            'assets/images/destination_bali.png',
-            'Ubud Valley Hotel',
-            'Bali, Indonesia',
-            4.9,
-          ),
-        ],
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: hotels.length,
+        itemBuilder: (context, index) {
+          final hotel = hotels[index];
+          return _buildHotelCard(
+            hotel.imagePath,
+            hotel.name,
+            hotel.location,
+            hotel.rating,
+          );
+        },
+        separatorBuilder: (context, index) => const SizedBox(height: 15),
       ),
     );
   }
