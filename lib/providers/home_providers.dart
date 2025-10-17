@@ -6,7 +6,10 @@ final usernameProvider = Provider<String>((ref) {
   return 'Explorer!';
 });
 
-final popularDestinationsProvider = Provider<List<Destination>>((ref) {
+final popularDestinationsProvider = FutureProvider<List<Destination>>((
+  ref,
+) async {
+  await Future.delayed(const Duration(seconds: 2));
   return [
     Destination(
       imagePath: 'assets/images/destination_bali.png',
@@ -26,7 +29,8 @@ final popularDestinationsProvider = Provider<List<Destination>>((ref) {
   ];
 });
 
-final hotelRecommendationsProvider = Provider<List<Hotel>>((ref) {
+final hotelRecommendationsProvider = FutureProvider<List<Hotel>>((ref) async {
+  await Future.delayed(const Duration(seconds: 3));
   return [
     Hotel(
       imagePath: 'assets/images/destination_santorini.png',
@@ -42,3 +46,25 @@ final hotelRecommendationsProvider = Provider<List<Hotel>>((ref) {
     ),
   ];
 });
+
+class LikedHotelsNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() {
+    return [];
+  }
+
+  void toggleLikeStatus(String hotelId) {
+    final isCurrentlyLiked = state.contains(hotelId);
+
+    if (isCurrentlyLiked) {
+      state = state.where((id) => id != hotelId).toList();
+    } else {
+      state = [...state, hotelId];
+    }
+  }
+}
+
+// 2. Ganti StateProvider menjadi NotifierProvider
+final likedHotelsProvider = NotifierProvider<LikedHotelsNotifier, List<String>>(
+  LikedHotelsNotifier.new,
+);
