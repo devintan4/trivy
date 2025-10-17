@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trivy/models/destination_model.dart';
 import 'package:trivy/models/hotel_model.dart';
+import 'package:trivy/database_helper.dart';
 
 final usernameProvider = Provider<String>((ref) {
   return 'Explorer!';
@@ -50,21 +51,26 @@ final hotelRecommendationsProvider = FutureProvider<List<Hotel>>((ref) async {
 class LikedHotelsNotifier extends Notifier<List<String>> {
   @override
   List<String> build() {
+    Future.microtask(() async {
+      state = await DatabaseHelper.instance.getLikedHotels();
+    });
     return [];
   }
 
-  void toggleLikeStatus(String hotelId) {
+  void toggleLikeStatus(String hotelId) async {
+    final db = DatabaseHelper.instance;
     final isCurrentlyLiked = state.contains(hotelId);
 
     if (isCurrentlyLiked) {
+      await db.unlikeHotel(hotelId);
       state = state.where((id) => id != hotelId).toList();
     } else {
+      await db.likeHotel(hotelId);
       state = [...state, hotelId];
     }
   }
 }
 
-// 2. Ganti StateProvider menjadi NotifierProvider
 final likedHotelsProvider = NotifierProvider<LikedHotelsNotifier, List<String>>(
   LikedHotelsNotifier.new,
 );

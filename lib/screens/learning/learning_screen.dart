@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trivy/providers/api_providers.dart';
+import 'package:trivy/providers/settings_provider.dart'; // Ditambahkan
 import 'package:trivy/screens/learning/detail_screen.dart';
 
 class LearningScreen extends StatefulWidget {
@@ -234,6 +235,23 @@ class _LearningScreenState extends State<LearningScreen> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stackTrace) =>
                     Center(child: Text('Error: $error')),
+              );
+            },
+          ),
+          const Divider(height: 40),
+          _buildSectionTitle('6. Persistent Storage (SharedPreferences)'),
+          Consumer(
+            builder: (context, ref, child) {
+              final isExpertMode = ref.watch(settingsProvider);
+              return ListTile(
+                title: const Text('Mode Wisatawan Ahli'),
+                subtitle: const Text('Simpan pengaturan antar sesi.'),
+                trailing: Switch(
+                  value: isExpertMode,
+                  onChanged: (newValue) {
+                    ref.read(settingsProvider.notifier).setExpertMode(newValue);
+                  },
+                ),
               );
             },
           ),
