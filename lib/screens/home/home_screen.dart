@@ -22,7 +22,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: ListView(
         children: [
-          _buildHeader(username),
+          _buildHeader(context, username),
           const SizedBox(height: 20),
           _buildSearchBar(),
           const SizedBox(height: 30),
@@ -67,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
 
   // == WIDGET-WIDGET PEMBANTU ==
 
-  Widget _buildHeader(String username) {
+  Widget _buildHeader(BuildContext context, String username) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
       child: Row(
@@ -90,9 +90,11 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const CircleAvatar(
-            radius: 30,
-            backgroundImage: AssetImage('assets/images/destination_paris.png'),
+          IconButton(
+            icon: const Icon(Icons.school, size: 30),
+            onPressed: () {
+              Navigator.pushNamed(context, '/learning');
+            },
           ),
         ],
       ),

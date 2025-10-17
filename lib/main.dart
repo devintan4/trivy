@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- 1. Tambahkan import ini
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trivy/screens/home/home_screen.dart';
+import 'package:trivy/screens/learning/detail_screen.dart';
+import 'package:trivy/screens/learning/learning_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -15,7 +17,12 @@ class MyApp extends StatelessWidget {
       title: 'Travel App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Poppins'),
-      home: const HomeScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomeScreen(),
+        '/learning': (context) => const LearningScreen(),
+        '/detail': (context) => const DetailScreen(),
+      },
     );
   }
 }
