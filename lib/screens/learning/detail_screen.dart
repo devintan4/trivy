@@ -6,8 +6,7 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- TUGAS 4 (POIN 20): MENERIMA DATA ---
-    // Mengambil argumen yang dikirim dan mengubahnya kembali menjadi objek Destination
+    // Mengambil data Destination yang dikirim dari HomeScreen
     final destination =
         ModalRoute.of(context)!.settings.arguments as Destination;
 
@@ -63,12 +62,46 @@ class DetailScreen extends StatelessWidget {
                     style: TextStyle(color: Colors.black87, height: 1.5),
                   ),
                   const SizedBox(height: 30),
+
+                  // --- PERBAIKAN: Menambahkan fungsi pada tombol ---
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // TUGAS 3: Implementasi Alert/Dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Booking Confirmation'),
+                            content: Text(
+                              'Are you sure you want to book a trip to ${destination.title}?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // Tutup Dialog
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Trip to ${destination.title} booked successfully!',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Confirm'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
