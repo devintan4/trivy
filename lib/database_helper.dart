@@ -17,19 +17,32 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
+    // Naikan versi menjadi 2 jika Anda sudah pernah menjalankan aplikasi sebelumnya
     return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
   Future _createDB(Database db, int version) async {
     const idType = 'TEXT PRIMARY KEY NOT NULL';
+    const textType = 'TEXT NOT NULL';
 
+    // 1. Tabel untuk Hotel yang di-Like
     await db.execute('''
       CREATE TABLE liked_hotels (
         id $idType
       )
     ''');
+
+    // 2. TAMBAHKAN DI SINI: Tabel untuk History Booking
+    await db.execute('''
+      CREATE TABLE bookings (
+        id $idType,
+        title $textType,
+        date $textType
+      )
+    ''');
   }
 
+  // --- FUNGSI UNTUK LIKED HOTELS ---
   Future<void> likeHotel(String id) async {
     final db = await instance.database;
     await db.insert('liked_hotels', {
@@ -45,12 +58,30 @@ class DatabaseHelper {
   Future<List<String>> getLikedHotels() async {
     final db = await instance.database;
     final maps = await db.query('liked_hotels');
+    return maps.isNotEmpty
+        ? maps.map((json) => json['id'] as String).toList()
+        : [];
+  }
 
-    if (maps.isNotEmpty) {
-      return maps.map((json) => json['id'] as String).toList();
-    } else {
-      return [];
-    }
+  // --- TAMBAHKAN DI SINI: FUNGSI UNTUK BOOKING ---
+
+  // Fungsi untuk memasukkan data booking baru
+  Future<void> insertBooking(String id, String title) async {
+    final db = await instance.database;
+    final String dateNow = DateTime.now()
+        .toString(); // Mengambil waktu saat ini
+
+    await db.insert('bookings', {
+      'id': id,
+      'title': title,
+      'date': dateNow,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // Fungsi untuk mengambil semua riwayat booking (opsional, untuk pembuktian)
+  Future<List<Map<String, dynamic>>> getAllBookings() async {
+    final db = await instance.database;
+    return await db.query('bookings', orderBy: 'date DESC');
   }
 
   Future close() async {

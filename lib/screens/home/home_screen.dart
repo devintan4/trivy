@@ -6,8 +6,6 @@ import 'package:trivy/providers/home_providers.dart';
 import 'package:trivy/providers/api_providers.dart';
 import 'package:trivy/providers/settings_provider.dart';
 
-// --- TUGAS 4 (POIN 16): LIFTING STATE UP ---
-// Widget Anak (Stateless) yang menerima state dan fungsi dari Induk
 class TravelerCounter extends StatelessWidget {
   final int count;
   final VoidCallback onAdd;
@@ -57,9 +55,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // State yang diangkat ke Induk (Lifting State Up)
   int _travelerCount = 1;
-
   String _travelerName = "Guest";
   final _bookingFormKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -89,7 +85,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final destinations = ref.watch(popularDestinationsProvider);
     final hotels = ref.watch(hotelRecommendationsProvider);
     final username = ref.watch(usernameProvider);
-    final isExpertMode = ref.watch(settingsProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -109,7 +104,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 15),
-                // Memanggil widget anak dan memberikan data/fungsi
                 TravelerCounter(
                   count: _travelerCount,
                   onAdd: _incrementTraveler,
@@ -159,6 +153,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onPressed: () {
                       if (_bookingFormKey.currentState!.validate()) {
                         setState(() => _travelerName = _nameController.text);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Identity Updated!')),
+                        );
                       }
                     },
                     child: const Text('Update Identity'),
@@ -180,48 +177,88 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             error: (err, _) => Center(child: Text('Error: $err')),
           ),
 
-          _buildTravelSection(
-            'Global Traveler Insights',
-            Consumer(
-              builder: (context, ref, _) {
-                final apiData = ref.watch(postsProvider);
-                return apiData.when(
-                  data: (products) => Column(
-                    children: products
+          _buildSectionTitle('Global Hot Destinations', () {}),
+          Consumer(
+            builder: (context, ref, _) {
+              final apiData = ref.watch(postsProvider);
+
+              return apiData.when(
+                data: (posts) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: posts
                         .take(5)
                         .map(
-                          (product) => Card(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
+                          (post) => Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
                             child: ListTile(
-                              leading: const Icon(
-                                Icons.shopping_bag_outlined,
-                                color: Colors.blue,
-                              ),
-                              title: Text(
-                                product.title,
-                                maxLines: 1,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[100],
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.explore,
+                                  color: Colors.blue,
                                 ),
                               ),
-                              subtitle: Text(
-                                product.body,
-                                maxLines: 2,
+                              title: Text(
+                                post.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              subtitle: Text(
+                                post.body,
+                                maxLines: 2,
+                                style: const TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 12,
+                              ),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    title: Text(post.title),
+                                    content: SingleChildScrollView(
+                                      child: Text(post.body),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         )
                         .toList(),
                   ),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text('Error: $e'),
-                );
-              },
-            ),
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) =>
+                    Center(child: Text('Error loading insights: $e')),
+              );
+            },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -297,6 +334,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
     ),
   );
+
   Widget _buildSearchBar() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: TextField(
@@ -312,6 +350,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     ),
   );
+
   Widget _buildSectionTitle(String t, VoidCallback o) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
     child: Row(
@@ -325,6 +364,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ],
     ),
   );
+
   Widget _buildPopularDestinations(List<Destination> list) => SizedBox(
     height: 200,
     child: ListView.builder(
@@ -334,6 +374,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       itemBuilder: (ctx, i) => _DestinationCard(destination: list[i]),
     ),
   );
+
   Widget _buildHotelList(List<Hotel> list) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: ListView.builder(

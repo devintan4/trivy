@@ -6,11 +6,11 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mengambil data Destination yang dikirim dari HomeScreen
     final destination =
         ModalRoute.of(context)!.settings.arguments as Destination;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(destination.title),
         backgroundColor: Colors.white,
@@ -19,9 +19,7 @@ class DetailScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Menampilkan gambar sesuai data yang dikirim
             Image.asset(
               destination.imagePath,
               width: double.infinity,
@@ -41,41 +39,32 @@ class DetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    children: const [
-                      Icon(Icons.location_on, color: Colors.blue, size: 20),
-                      SizedBox(width: 5),
-                      Text(
-                        "Popular Destination",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
                   const Text(
                     "Description",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    "This is a wonderful place to visit. You can enjoy the beautiful scenery and local culture here. Integrated with our travel system, you can now book tours and hotels nearby directly from the app.",
-                    style: TextStyle(color: Colors.black87, height: 1.5),
+                    "Explore the breathtaking beauty of this location. A perfect getaway for your next adventure.",
                   ),
                   const SizedBox(height: 30),
 
-                  // --- PERBAIKAN: Menambahkan fungsi pada tombol ---
+                  // TOMBOL BOOKING (Hanya UI & Dialog, Tanpa Simpan DB)
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: () {
-                        // TUGAS 3: Implementasi Alert/Dialog
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Booking Confirmation'),
+                            title: const Text('Confirm Booking'),
                             content: Text(
-                              'Are you sure you want to book a trip to ${destination.title}?',
+                              'Do you want to book a trip to ${destination.title}?',
                             ),
                             actions: [
                               TextButton(
@@ -88,10 +77,11 @@ class DetailScreen extends StatelessWidget {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Trip to ${destination.title} booked successfully!',
+                                        'Success! Trip to ${destination.title} is booked.',
                                       ),
                                     ),
                                   );
+                                  Navigator.pop(context); // Kembali ke Home
                                 },
                                 child: const Text('Confirm'),
                               ),
@@ -99,13 +89,6 @@ class DetailScreen extends StatelessWidget {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
                       child: const Text("Book This Destination"),
                     ),
                   ),

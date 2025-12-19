@@ -13,16 +13,19 @@ final popularDestinationsProvider = FutureProvider<List<Destination>>((
   await Future.delayed(const Duration(seconds: 2));
   return [
     Destination(
+      id: 'dest_01', // Tambahkan ID agar bisa disimpan di DB
       imagePath: 'assets/images/destination_bali.png',
       title: 'Kelingking Beach',
       location: 'Bali, Indonesia',
     ),
     Destination(
+      id: 'dest_02',
       imagePath: 'assets/images/destination_paris.png',
       title: 'Eiffel Tower',
       location: 'Paris, France',
     ),
     Destination(
+      id: 'dest_03',
       imagePath: 'assets/images/destination_santorini.png',
       title: 'Santorini',
       location: 'Greece',
@@ -34,12 +37,14 @@ final hotelRecommendationsProvider = FutureProvider<List<Hotel>>((ref) async {
   await Future.delayed(const Duration(seconds: 3));
   return [
     Hotel(
+      id: 'hotel_01', // Tambahkan ID agar fitur Like bekerja
       imagePath: 'assets/images/destination_santorini.png',
       name: 'Santorini Resort',
       location: 'Greece',
       rating: 4.8,
     ),
     Hotel(
+      id: 'hotel_02',
       imagePath: 'assets/images/destination_bali.png',
       name: 'Ubud Valley Hotel',
       location: 'Bali, Indonesia',
@@ -48,6 +53,7 @@ final hotelRecommendationsProvider = FutureProvider<List<Hotel>>((ref) async {
   ];
 });
 
+// --- STATE NOTIFIER UNTUK LIKED HOTELS (SUDAH ADA) ---
 class LikedHotelsNotifier extends AsyncNotifier<List<String>> {
   @override
   Future<List<String>> build() async {
@@ -72,4 +78,31 @@ class LikedHotelsNotifier extends AsyncNotifier<List<String>> {
 final likedHotelsProvider =
     AsyncNotifierProvider<LikedHotelsNotifier, List<String>>(
       LikedHotelsNotifier.new,
+    );
+
+// --- TAMBAHKAN DI SINI: BOOKING NOTIFIER ---
+// Menangani logika penyimpanan booking ke SQLite dan memperbarui state UI
+class BookingNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
+  @override
+  Future<List<Map<String, dynamic>>> build() async {
+    // Mengambil riwayat booking saat aplikasi pertama kali dijalankan
+    return await DatabaseHelper.instance.getAllBookings();
+  }
+
+  // Fungsi untuk menambah booking baru ke SQLite
+  Future<void> addBooking(String id, String title) async {
+    final db = DatabaseHelper.instance;
+
+    // 1. Simpan ke Database Fisik
+    await db.insertBooking(id, title);
+
+    // 2. Perbarui State aplikasi agar UI tahu ada data baru
+    state = AsyncData(await db.getAllBookings());
+  }
+}
+
+// Provider global untuk fitur Booking
+final bookingProvider =
+    AsyncNotifierProvider<BookingNotifier, List<Map<String, dynamic>>>(
+      BookingNotifier.new,
     );
