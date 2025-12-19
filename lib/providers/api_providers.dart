@@ -1,16 +1,21 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:trivy/models/post_model.dart';
+import '../models/post_model.dart';
 
 final postsProvider = FutureProvider<List<Post>>((ref) async {
-  final url = Uri.parse('https://jsonplaceholder.typicode.com/posts');
-  final response = await http.get(url);
+  // Ganti ke DummyJSON Products
+  const String url = 'https://dummyjson.com/products';
+
+  final response = await http.get(Uri.parse(url));
 
   if (response.statusCode == 200) {
-    List<dynamic> jsonResponse = json.decode(response.body);
-    return jsonResponse.map((post) => Post.fromJson(post)).toList();
+    final Map<String, dynamic> data = json.decode(response.body);
+    // DummyJSON membungkus datanya di dalam key 'products'
+    final List<dynamic> productsJson = data['products'];
+
+    return productsJson.map((json) => Post.fromJson(json)).toList();
   } else {
-    throw Exception('Gagal memuat data posts');
+    throw Exception('Failed to load products from DummyJSON');
   }
 });
