@@ -3,98 +3,273 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trivy/models/destination_model.dart';
 import 'package:trivy/models/hotel_model.dart';
 import 'package:trivy/providers/home_providers.dart';
+import 'package:trivy/providers/api_providers.dart';
+import 'package:trivy/providers/settings_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Membaca data AsyncValue dari FutureProvider
-    final AsyncValue<List<Destination>> destinations = ref.watch(
-      popularDestinationsProvider,
-    );
-    final AsyncValue<List<Hotel>> hotels = ref.watch(
-      hotelRecommendationsProvider,
-    );
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
-    final String username = ref.watch(usernameProvider);
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // --- STATE MANAGEMENT (Sekarang untuk fitur Reservasi/Rencana) ---
+  String _travelerName = "Guest";
+  int _groupSize = 1;
+  bool _isPremiumMember = false;
+  final _bookingFormKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+
+  void _increaseGroupSize() {
+    setState(() {
+      _groupSize++;
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = ref.watch(popularDestinationsProvider);
+    final hotels = ref.watch(hotelRecommendationsProvider);
+    final username = ref.watch(usernameProvider);
+    final isExpertMode = ref.watch(settingsProvider);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: ListView(
         children: [
-          _buildHeader(context, username),
+          _buildHeader(username),
           const SizedBox(height: 20),
           _buildSearchBar(),
-          const SizedBox(height: 30),
+
+          // --- FITUR 1: QUICK PLANNING (Implementasi State & Grouping) ---
+          _buildTravelSection(
+            'Quick Trip Planner',
+            Column(
+              children: [
+                Text(
+                  'Group Size: $_groupSize People',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _increaseGroupSize,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Traveler'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  title: const Text('Priority Pass (Fast Track)'),
+                  secondary: const Icon(
+                    Icons.verified_user,
+                    color: Colors.orange,
+                  ),
+                  value: _isPremiumMember,
+                  onChanged: (v) => setState(() => _isPremiumMember = v),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
           _buildSectionTitle('Popular Destinations', () {}),
-          const SizedBox(height: 20),
-
-          // Menggunakan .when untuk menangani state loading, error, dan data
           destinations.when(
-            data: (destinationsData) =>
-                _buildPopularDestinations(destinationsData),
+            data: (data) => _buildPopularDestinations(data),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            error: (err, _) =>
+                Center(child: Text('Error loading destinations: $err')),
+          ),
+
+          // --- FITUR 2: REGISTRATION (Implementasi Form & Validation) ---
+          _buildTravelSection(
+            'Update Traveler Profile',
+            Form(
+              key: _bookingFormKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your full name',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                      ),
+                    ),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Please enter a name' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_bookingFormKey.currentState!.validate()) {
+                          setState(() => _travelerName = _nameController.text);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Profile updated successfully!'),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Update Identity'),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text(
+                      'Current Traveler: $_travelerName',
+                      style: const TextStyle(fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
 
           const SizedBox(height: 30),
-          _buildSectionTitle('Hotel Recommendations', () {}),
-          const SizedBox(height: 20),
-
+          _buildSectionTitle('Top Rated Hotels', () {}),
           hotels.when(
-            data: (hotelsData) => _buildHotelList(hotelsData),
+            data: (data) => _buildHotelList(data),
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            error: (err, _) =>
+                Center(child: Text('Error loading hotels: $err')),
           ),
+
+          // --- FITUR 3: TRAVEL NEWS (Implementasi REST API) ---
+          _buildTravelSection(
+            'Traveler Insights (Global)',
+            Consumer(
+              builder: (context, ref, _) {
+                final apiData = ref.watch(postsProvider);
+                return apiData.when(
+                  data: (posts) => Column(
+                    children: posts
+                        .take(3)
+                        .map(
+                          (post) => Card(
+                            margin: const EdgeInsets.symmetric(vertical: 5),
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.explore_outlined,
+                                color: Colors.blue,
+                              ),
+                              title: Text(
+                                post.title,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(
+                                post.body,
+                                maxLines: 1,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) =>
+                      const Text('Unable to fetch latest insights.'),
+                );
+              },
+            ),
+          ),
+
+          // --- FITUR 4: APP SETTINGS (Implementasi SharedPreferences) ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Advanced Explorer Mode',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Switch(
+                  value: isExpertMode,
+                  onChanged: (v) =>
+                      ref.read(settingsProvider.notifier).setExpertMode(v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: 'Saved'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-        currentIndex: 0,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        onTap: (index) {},
       ),
     );
   }
 
-  // == WIDGET-WIDGET PEMBANTU ==
+  // --- UI HELPERS ---
 
-  Widget _buildHeader(BuildContext context, String username) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hello, $username',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Discover your next journey',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
+  Widget _buildTravelSection(String title, Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
-          IconButton(
-            icon: const Icon(Icons.school, size: 30),
-            onPressed: () {
-              Navigator.pushNamed(context, '/learning');
-            },
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.black87,
+            ),
+          ),
+          const Divider(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String username) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Welcome, $username',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            'Ready for a new adventure?',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
         ],
       ),
@@ -106,15 +281,14 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: TextField(
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
-          hintText: 'Search for places...',
-          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintText: 'Search destinations...',
+          prefixIcon: const Icon(Icons.search, color: Colors.blue),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
+            borderRadius: BorderRadius.circular(15.0),
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.grey[200],
+          fillColor: Colors.grey[100],
         ),
       ),
     );
@@ -130,292 +304,167 @@ class HomeScreen extends ConsumerWidget {
             title,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          GestureDetector(
-            onTap: onTap,
-            child: const Text(
-              'See All',
-              style: TextStyle(color: Colors.blue, fontSize: 16),
-            ),
-          ),
+          TextButton(onPressed: onTap, child: const Text('See All')),
         ],
       ),
     );
   }
 
-  Widget _buildPopularDestinations(List<Destination> destinations) {
-    return Container(
-      height: 250,
+  Widget _buildPopularDestinations(List<Destination> list) {
+    return SizedBox(
+      height: 240,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(left: 20),
-        itemCount: destinations.length,
-        itemBuilder: (context, index) {
-          final destination = destinations[index];
-          return _DestinationCard(
-            destination: destination,
-          ); // Gunakan widget terpisah
-        },
+        itemCount: list.length,
+        itemBuilder: (context, index) =>
+            _DestinationCard(destination: list[index]),
       ),
     );
   }
 
-  Widget _buildHotelList(List<Hotel> hotels) {
+  Widget _buildHotelList(List<Hotel> list) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: hotels.length,
-        itemBuilder: (context, index) {
-          final hotel = hotels[index];
-          return _HotelCard(hotel: hotel); // Gunakan widget terpisah
-        },
-        separatorBuilder: (context, index) => const SizedBox(height: 15),
+        itemCount: list.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) => _HotelCard(hotel: list[index]),
       ),
     );
   }
 }
 
-// == WIDGET KARTU DESTINASI (DENGAN INTERAKSI GAMBAR & OPSI) ==
+// --- WIDGET COMPONENTS (MODERN TRAVEL STYLE) ---
 
 class _DestinationCard extends StatelessWidget {
-  const _DestinationCard({required this.destination});
   final Destination destination;
-
-  // Fungsi untuk menampilkan dialog gambar
-  void _showImageDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(destination.imagePath),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                destination.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  const _DestinationCard({required this.destination});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200,
+      width: 180,
       margin: const EdgeInsets.only(right: 15),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20.0),
-        child: Stack(
-          alignment: Alignment.bottomLeft,
-          children: [
-            // FITUR: Image Interaktif
-            GestureDetector(
-              onTap: () => _showImageDialog(context),
-              child: Image.asset(
-                destination.imagePath,
-                fit: BoxFit.cover,
-                height: 250,
-                width: 200,
-              ),
-            ),
-            Container(
-              height: 250,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.center,
+      child: InkWell(
+        onTap: () => showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(destination.imagePath),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    destination.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
+              ],
             ),
-            // FITUR: Opsi (Option)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  // Aksi sederhana saat opsi dipilih
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('$value selected for ${destination.title}'),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(destination.imagePath, fit: BoxFit.cover),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.8),
+                      ],
                     ),
-                  );
-                },
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'View Details',
-                    child: Text('View Details'),
                   ),
-                  const PopupMenuItem<String>(
-                    value: 'Add to Wishlist',
-                    child: Text('Add to Wishlist'),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+                  child: Text(
                     destination.title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: Text(
-                          destination.location,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// == WIDGET KARTU HOTEL (DENGAN LOCAL STATE & DIALOG) ==
-
-class _HotelCard extends ConsumerWidget {
-  const _HotelCard({required this.hotel});
-  final Hotel hotel;
-
-  void _showBookingConfirmationDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Booking'),
-          content: Text(
-            'Are you sure you want to book a room at ${hotel.name}?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Booking for ${hotel.name} confirmed!'),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final likedHotelIds = ref.watch(likedHotelsProvider);
-    final isLiked = likedHotelIds.contains(hotel.id);
-
-    return GestureDetector(
-      onTap: () => _showBookingConfirmationDialog(context),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10.0),
-                child: Image.asset(
-                  hotel.imagePath,
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
                 ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hotel.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      hotel.location,
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 20),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${hotel.rating}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // ## PERUBAHAN HANYA DI SINI ##
-              IconButton(
-                icon: Icon(
-                  isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: isLiked ? Colors.red : Colors.grey,
-                ),
-                onPressed: () {
-                  ref
-                      .read(likedHotelsProvider.notifier)
-                      .toggleLikeStatus(hotel.id);
-                },
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HotelCard extends ConsumerWidget {
+  final Hotel hotel;
+  const _HotelCard({required this.hotel});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final likedHotelIdsAsync = ref.watch(likedHotelsProvider);
+
+    return likedHotelIdsAsync.when(
+      data: (likedIds) {
+        final isLiked = likedIds.contains(hotel.id);
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(10),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                hotel.imagePath,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+              ),
+            ),
+            title: Text(
+              hotel.name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(hotel.location),
+            trailing: IconButton(
+              icon: Icon(
+                isLiked ? Icons.favorite : Icons.favorite_border,
+                color: Colors.red,
+              ),
+              onPressed: () => ref
+                  .read(likedHotelsProvider.notifier)
+                  .toggleLikeStatus(hotel.id),
+            ),
+            onTap: () => showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Room Booking'),
+                content: Text('Proceed to book a room at ${hotel.name}?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Confirm'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const ListTile(title: Text('Fetching status...')),
+      error: (e, _) => ListTile(title: Text('Status Error: $e')),
     );
   }
 }

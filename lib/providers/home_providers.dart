@@ -48,29 +48,28 @@ final hotelRecommendationsProvider = FutureProvider<List<Hotel>>((ref) async {
   ];
 });
 
-class LikedHotelsNotifier extends Notifier<List<String>> {
+class LikedHotelsNotifier extends AsyncNotifier<List<String>> {
   @override
-  List<String> build() {
-    Future.microtask(() async {
-      state = await DatabaseHelper.instance.getLikedHotels();
-    });
-    return [];
+  Future<List<String>> build() async {
+    return await DatabaseHelper.instance.getLikedHotels();
   }
 
-  void toggleLikeStatus(String hotelId) async {
+  Future<void> toggleLikeStatus(String hotelId) async {
     final db = DatabaseHelper.instance;
-    final isCurrentlyLiked = state.contains(hotelId);
+    final currentLikedIds = state.value ?? [];
+    final isCurrentlyLiked = currentLikedIds.contains(hotelId);
 
     if (isCurrentlyLiked) {
+      state = AsyncData(currentLikedIds.where((id) => id != hotelId).toList());
       await db.unlikeHotel(hotelId);
-      state = state.where((id) => id != hotelId).toList();
     } else {
+      state = AsyncData([...currentLikedIds, hotelId]);
       await db.likeHotel(hotelId);
-      state = [...state, hotelId];
     }
   }
 }
 
-final likedHotelsProvider = NotifierProvider<LikedHotelsNotifier, List<String>>(
-  LikedHotelsNotifier.new,
-);
+final likedHotelsProvider =
+    AsyncNotifierProvider<LikedHotelsNotifier, List<String>>(
+      LikedHotelsNotifier.new,
+    );
